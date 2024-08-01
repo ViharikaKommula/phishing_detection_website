@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Detection</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Phishing Detection</h1>
+        <form id="urlForm">
+            <label for="url">Enter URL:</label>
+            <input type="text" id="url" name="url" required>
+            <button type="submit">Check</button>
+        </form>
+        <div id="result"></div>
+        <h2>History</h2>
+        <ul id="history">
+            {% for entry in history %}
+                <li>
+                    <span>{{ entry.url }} - {{ entry.result }} (Confidence: {{ entry.confidence }})</span>
+                    <div class="feedback">
+                        <input type="text" placeholder="Feedback" class="feedback-input" data-url="{{ entry.url }}">
+                        <button class="feedback-btn">Submit</button>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+        document.getElementById('urlForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const url = document.getElementById('url').value;
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `url=${encodeURIComponent(url)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').innerHTML = `Prediction: ${data.prediction} (Confidence: ${data.confidence})`;
+                const historyList = document.getElementById('history');
+                const newEntry = document.createElement('li');
+                newEntry.innerHTML = `
+                    <span>${url} - ${data.prediction} (Confidence: ${data.confidence})</span>
+                    <div class="feedback">
+                        <input type="text" placeholder="Feedback" class="feedback-input" data-url="${url}">
+                        <button class="feedback-btn">Submit</button>
+                    </div>`;
+                historyList.prepend(newEntry);
+                addFeedbackListeners();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = 'An error occurred. Please try again.';
+            });
+        });
+
+        function addFeedbackListeners() {
+            document.querySelectorAll('.feedback-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const url = this.previousElementSibling.getAttribute('data-url');
+                    const feedback = this.previousElementSibling.value;
+                    fetch('/feedback', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `url=${encodeURIComponent(url)}&feedback=${encodeURIComponent(feedback)}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Feedback received');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                });
+            });
+        }
+
+        addFeedbackListeners();
+    </script>
+</body>
+</html>
